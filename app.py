@@ -1,5 +1,6 @@
 import streamlit as st
 from google import genai
+import pypdf
 
 # 1. Page Configuration
 st.set_page_config(page_title="FitScore Tracker", page_icon="🎯", layout="centered")
@@ -16,6 +17,18 @@ career_track = st.selectbox(
     ["Select a track...", "Research Industry", "Pharma Industry", "Consultancy", "MSL", "School/Education"]
 )
 
+# Helper function to read PDFs or TXT files
+def extract_text(uploaded_file):
+    if uploaded_file.name.endswith('.pdf'):
+        reader = pypdf.PdfReader(uploaded_file)
+        text = ""
+        for page in reader.pages:
+            if page.extract_text():
+                text += page.extract_text() + "\n"
+        return text
+    else:
+        return uploaded_file.getvalue().decode("utf-8")
+
 # 4. The Document Hub 
 if career_track != "Select a track...":
     st.success(f"Profile loaded! The Scoring Engine is now tuned for {career_track} roles.")
@@ -24,9 +37,9 @@ if career_track != "Select a track...":
     
     col1, col2 = st.columns(2)
     with col1:
-        job_description = st.file_uploader("Upload Job Description (.txt)", type=["txt"])
+        job_description = st.file_uploader("Upload Job Description", type=["pdf", "txt"])
     with col2:
-        resume = st.file_uploader("Upload Your Resume (.txt)", type=["txt"])
+        resume = st.file_uploader("Upload Your Resume", type=["pdf", "txt"])
         
     st.subheader("Interview Notes")
     interview_notes = st.text_area("Paste your interview transcripts, thoughts, or prompt notes here:")
@@ -35,13 +48,13 @@ if career_track != "Select a track...":
     st.divider()
     if st.button("Calculate FitScore (1-100)", type="primary"):
         if job_description is None or resume is None:
-            st.error("Please upload both a Job Description and a Resume (.txt files) to run the engine!")
+            st.error("Please upload both a Job Description and a Resume to run the engine!")
         else:
             with st.spinner("Brain is processing..."):
                 try:
-                    # Extract the text from the uploaded .txt files
-                    job_text = job_description.getvalue().decode("utf-8")
-                    resume_text = resume.getvalue().decode("utf-8")
+                    # Extract the text from the uploaded files (PDF or TXT)
+                    job_text = extract_text(job_description)
+                    resume_text = extract_text(resume)
                     
                     # Wake up the Gemini Client using our Secret Vault
                     client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
